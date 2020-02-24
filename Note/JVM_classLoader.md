@@ -20,11 +20,11 @@
 
   + JVM规范严格规定了5种（对一个类进行**主动引用**）必须立即对类进行初始化（加载、验证、准备需要在此之前开始）：
 
-    	1. 遇到`new`、`getstatic`、`putstatic`、`invokestatic`这4条指令时，如果类没有进行初始化需要先触发初始化。场景是：使用new关键字实例化对象、读取或设置一个类的静态字段（除开final修饰的静态字段，它已经在编译期把结果放入常量池）、以及调用一个类的静态方法。
-     	2. 使用`java.lang.reflect`包的方法对类进行反射调用时，如果类没有进行过初始化，需要先触发其初始化。
-     	3. 初始化一个类时，如果发现其父类还未进行过初始化，需要先触发父类的初始化。
-     	4. 虚拟机启动时，用户指定的主类，虚拟机会先初始化这个类。
-     	5. 使用JDK动态语言支持时，如果一个`java.lang.invoke.MethodHandle`实力最后的解析结果是`REF_getStatic`、`REF_putStatic`、`REF_invokeStatic`的方法句柄，且这个方法句柄对应的类没有进行过初始化，则需要先触发。
+    	1. 遇到`new`、`getstatic`、`putstatic`、`invokestatic`这4条指令时，如果类没有进行初始化需要先触发初始化。场景是：使用new关键字实例化对象、读取或设置一个类的静态字段（除final修饰的静态字段，它已经在编译期把结果放入常量池）、以及调用一个类的静态方法。
+     2. 使用`java.lang.reflect`包的方法对类进行反射调用时，如果类没有进行过初始化，需要先触发其初始化。
+     3. 初始化一个类时，如果发现其父类还未进行过初始化，需要先触发父类的初始化。
+     4. 虚拟机启动时，用户指定的主类，虚拟机会先初始化这个类。
+     5. 使用JDK动态语言支持时，如果一个`java.lang.invoke.MethodHandle`实例最后的解析结果是`REF_getStatic`、`REF_putStatic`、`REF_invokeStatic`的方法句柄，且这个方法句柄对应的类没有进行过初始化，则需要先触发。
 
     ```Java
     package jvm.ClassInit;
@@ -63,7 +63,7 @@
 
     1. T1:通过子类引用父类静态字段只会触发父类初始化，可能会触发子类的加载和验证（取决于虚拟机实现）。
     2. T2: 没有触发`jvm.ClassInit.SuperClass`的初始化,触发了一个[`Ljvm.ClassInit.SuperClass`的初始化（虚拟机自动生成，由`newarray`触发，代表了`jvm.ClassInit.SuperClass`的一维数组）;
-    3. T3: final修饰的字段在编译阶段常量传播优化被存储到了`ClassInitTest`的常量池中，在编译成Class文件时，`ClassInitTest`和`ConstClass`就没有关系了。
+    3. T3: final修饰的字段在编译阶段常量传播优化被存储到了`Test`的常量池中，在编译成Class文件时，`Test`和`ConstClass`就没有关系了。
     4. 接口中不能使用`static{}`块来输出初始化信息，但编译期仍会为接口生成`<clint>()`类构造器，用于初始化接口中定义的成员变量。接口与类的真正区别是前面5种规范中的第3点，类在初始化时要求父类已经初始化过，接口初始化时并不要求父接口都完成初始化，**只有在真正用到父接口时才会初始化**（如引用父接口定义的变量）。
 
 ## 2. 类加载的过程
@@ -158,7 +158,7 @@ protected Class<?> loadClass(String name, boolean resolve) {
 
 + **SPI**
 
-  常见的`SPI`有`JDBC`、`JNDI`、`JAXP`等，这些`SPI`的接口由核心类库提供，确由第三方实现.
+  常见的`SPI`有`JDBC`、`JNDI`、`JAXP`等，这些`SPI`的接口由核心类库提供，却由第三方实现.
 
   **带来的问题**：`SPI`接口是Java核心库的一部分，由`BootstrapClassLoader`加载；实现类一般是由`AppClassLoader`加载，`BootstrapClassLoader`无法找到`SPI`的实现类，因为它只能加载Java的核心库，它也不能代理给`AppClassLoader`，因为它是最顶层的类加载器，也就是说双亲委派模型并不能解决这个问题。
 
@@ -187,3 +187,4 @@ public Enumeration<URL> getResources(String name) throws IOException {
 逻辑和类加载的逻辑一样，符合双亲委派的模型，不同的类加载器负责扫描不同路径下的jar包，就如同加载class一样，最后会扫描所有的jar包，找到符合条件的资源文件。
 
 类加载器的`findResources(name)`方法会遍历其负责加载的所有jar包，找到jar包中名称为name的资源文件，这里的资源可以是任何文件，甚至是`.class`文件，比如下面的示例，用于查找`Array.class`文件。
+

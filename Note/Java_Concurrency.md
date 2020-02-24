@@ -297,12 +297,12 @@ Hasen 模型、Hoare 模型和 MESA 模型的一个核心区别就是当条件�
 + **MESA模型**
 
     1. 解决互斥问题
-      ![](https://kityminder-img.gz.bcebos.com/3b474811d68dacb4de86a03226a3975763e225aa)
+        ![](https://kityminder-img.gz.bcebos.com/3b474811d68dacb4de86a03226a3975763e225aa)
 
       将共享变量及其对共享变量的操作统一封装起来。
 
     1. 解决同步问题
-      ![](https://kityminder-img.gz.bcebos.com/1bc33ec702df2493a0114225873126d2d936a433)
+        ![](https://kityminder-img.gz.bcebos.com/1bc33ec702df2493a0114225873126d2d936a433)
 
       管程里还引入了条件变量的概念，而且每个条件变量都对应有一个等待队列。条件变量和等待队列的作用其实就是解决线程同步问题。
       实现同步就就是之前等待通知机制的实现。
@@ -1434,20 +1434,19 @@ pool.execute(()->{
 	在ThreadFactory中自定义名称前缀
     ```Java
     class CustomThreadFactory implements ThreadFactory {
-    @Override
-    public Thread newThread(Runnable r) {
-    Thread thread = new Thread("CUSTOM_NAME_PREFIX");
-    return thread;
-    }
+        @Override
+        public Thread newThread(Runnable r) {
+          return new Thread(r, "CUSTOM_NAME_PREFIX");
+        }
     }
     
     ThreadPoolExecutor threadPoolExecutor = new ThreadPoolExecutor(10,
-    100,
-    120,
-    TimeUnit.SECONDS,
-    new LinkedBlockingQueue<<(),
-    new CustomThreadFactory(),
-    new ThreadPoolExecutor.AbortPolicy()
+        100,
+        120,
+        TimeUnit.SECONDS,
+        new LinkedBlockingQueue<<(),
+        new CustomThreadFactory(),
+        new ThreadPoolExecutor.AbortPolicy()
     );
     ```
 
@@ -2207,35 +2206,36 @@ static class LongCache {
 
 1. 对象的所有属性都是 final 的，并不能保证不可变性；
 1. 不可变对象也需要正确发布。
+
 	final 修饰的属性一旦被赋值，就不可以再修改，但是如果属性的类型是普通对象，那么这个普通对象的属性是可以被修改的.在使用 Immutability 模式的时候一定要确认保持不变性的边界在哪里，是否要求属性对象也具备不可变性。
-    ```Java
-    class Foo{
-      int age=0;
-      int name="abc";
-    }
-    final class Bar {
-      // 对象属性可修改
-      final Foo foo;
-      void setAge(int a){
-        foo.age=a;
-      }
-    }
-    ```
-    ```Java
-    //Foo线程安全
-    final class Foo{
-      final int age=0;
-      final int name="abc";
-    }
-    //Bar线程不安全
-    class Bar {
-      // 不正确的发布
-      Foo foo;
-      void setFoo(Foo f){
-        this.foo=f;
-      }
-    }
-    ```
+	```Java
+	class Foo{
+	  int age=0;
+	  int name="abc";
+	}
+	final class Bar {
+	  // 对象属性可修改
+	  final Foo foo;
+	  void setAge(int a){
+	    foo.age=a;
+	  }
+	}
+	```
+	```Java
+	//Foo线程安全
+	final class Foo{
+	  final int age=0;
+	  final int name="abc";
+	}
+	//Bar线程不安全
+	class Bar {
+	  // 不正确的发布
+	  Foo foo;
+	  void setFoo(Foo f){
+	    this.foo=f;
+	  }
+	}
+	```
 
 #### 4.2.2. Copy-on-Write
 
@@ -2244,15 +2244,19 @@ static class LongCache {
 ##### 应用领域
 
 1. 操作系统进程
+
 	vfork：延时策略，只有在真正需要复制的时候才复制，而不是提前复制好
 1. Java集合
+
 	CopyOnWriteArrayList 和 CopyOnWriteArraySet：在修改的同时会复制整个容器，提升读的性能。
-    适合修改非常少、数组数量也不大，并且对读性能要求苛刻的场景。
+	适合修改非常少、数组数量也不大，并且对读性能要求苛刻的场景。
 1. 文件系统
      Btrfs (B-Tree File System)、aufs（advanced multi-layered unification filesystem）
 1. 其他
+
 	Docker容器镜像；Git
 1. 函数式编程
+
 	函数式编程的基础是不可变性（Immutability），所以函数式编程里面所有的修改操作都需要 Copy-on-Write。函数式编程是按需复制。
 
 #### 4.2.3. 线程本地存储模式

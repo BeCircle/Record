@@ -7,7 +7,7 @@ AOP基于Java的动态代理特性实现，详见 [designPattern_Proxy](/designP
 
 #### 2. 建立 AopProxy 代理对象
 在Spring的AOP模块中，一个主要的部分是代理对象的生成，而对于Spring应用是通过配置和调用 Spring 的 ProxyFactoryBean 来完成这个任务，ProxyFactoryBean  中封装了主要代理对象的生成过程。
-![aop类继承关系图](https://img.hacpai.com/file/2019/10/aopclasses-2a2f851e.png)
+![aop类继承关系图](img/aop_classes.png)
 
 如上图所示：
 + ProxyConfig 为其子类提供了配置属性，可以看作为一个数据基类；
@@ -17,7 +17,7 @@ AOP基于Java的动态代理特性实现，详见 [designPattern_Proxy](/designP
 + 对于需要使用 AspectJ 的 AOP 应用，AspectJProxyFactory 起到了集成Spring和AspectJ的作用；
 + 对于使用 Spring AOP 的应用，ProxyFactoryBean 和 ProxyFactory 都提供了AOP 功能的封装，只是使用 ProxyFactoryBean，可以在IOC 容器中完成声明式的配置，而使用 ProxyFactory 需要编程式的使用 Spring AOP 的功能。
 
-![aopcreateproxy1.png](https://img.hacpai.com/file/2019/10/aopcreateproxy1-731bd40a.png)
+![aopcreateproxy1.png](img/aop_create_proxy_1.png)
 
 IOC中的学习我们知道，从FactoryBean中获取对象，是以 getObject方法作为入口完成的，ProxyFactoryBean 实现了 getObject 方法，在这个方法中实现了对target对象增加增强处理（为Proxy代理对象配置Advisor链），然后由于Spring中有singleton和prototype两种类型，需要加以区分。
 
