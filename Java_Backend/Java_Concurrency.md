@@ -16,7 +16,7 @@
 
 8. [Happen-Before]:#Happen-Before原则
 
-9. [synchronized]:#synchronized
+9. [synchronized](Java_synchronized.md)
 
 10. [CAS是什么，怎么实现的、CAS机制有什么问题](#2.6.2 CAS)
 
@@ -24,43 +24,22 @@
 
 12. [AQS](#2.0 AbstractQueuedSynchronizer)
 
-13. Lock的实现
-
-   `ReentrantLock`实现`Lock`接口，含有一个变量`Sync sync`，`Sync`是内部类，有两个子类`NonfairSync`和`FairSync`，`Sync`继承自`AbstractQueuedSynchronizer`，`AbstractQueuedSynchronizer`继承自`AbstractOwnableSynchronizer`。
-
-   `AbstractOwnableSynchronizer`提供了设置占用当前锁的线程信息的方法，主要的锁的实现是`AbstractQueuedSynchronizer`使用双向链表实现多线程锁的排队使用。
-
-   `NonfairSync`和`FairSync`的主要区别是`tryAcquire()`方法，公平锁中，当前线程在没有老线程(`!hasQueuedPredecessors()`)才占用；非公平锁中，直接尝试占用，可能使老线程长时间获取不到。
-
-   `ReentrantLock`默认使用`NonfairSync`，也就是默认是非公平锁。
+13. [Lock的实现](#2.1.1. ReentrantLock)
 
 
-12. synchronized 和 Lock区别，使用场景
+12. [synchronized 和 Lock区别，使用场景]:#与Syschronized的区别
 
-    `synchronized`是java对管程模型的简化实现，`synchronized`可以用来修饰方法、代码块、java编译期会在`synchronized`修饰的方法或代码块前后自动加上`Lock()`和`unlock()`。`synchronized`获取不到资源会阻塞，无法进行其他操作，`Lock`则提供了支持超时、支持非阻塞获取锁的API。
+13. [死锁的危害和排查]:#死锁
 
-13. 如何保证内存可见性
+14. 如何保证内存可见性
 
-14. ThreadLocal
+15. ThreadLocal
 
-15. Java最多能开多少线程
+16. Java最多能开多少线程
 
-16. 线程池的原理与拒接策略
+17. [线程池的原理与拒接策略](###2.7. 线程池)
 
-    创建线程需要调用OS的API，成本高，所以线程是一个重量级的对象，线程池可以避免频繁创建和销毁。
-
-    + 线程池原理
-
-      以阻塞队列连接的生产者-消费者模式，线程池是消费者，使用方是生产者
-
-    + 任务拒接策略
-
-      默认的任务策略有：
-
-      + CallerRunsPolicy 提交任务的线程自己执行
-      + AbortPolicy：默认的拒绝策略，会throws RejectedExecutionException
-      + DiscardPolicy：直接丢弃任务，没有任何异常抛出；
-      + DiscardOldestPolicy：把最早进入工作队列的任务丢弃，然后把新任务加入到工作队列。
+    
 
 ## 1. 理论知识
   ![全景图](img/java_con.png)
@@ -240,6 +219,7 @@
   这里锁定对象为整个类，这样当发生转账时，target和source都被锁住。如果只锁定this，由于没有锁定target，如果有另外的线程同时在对target账户进行操作，仍然存在并发问题。
   
 + **死锁**
+  ----
 
   使用细粒度锁可以提高并行度，是性能优化的一个重要手段，上述方案，并发粒度过大，同时只能执行一笔转账。修改成这样，每次只锁定发生转账关系的两个账户对象，而非整个类。
 
@@ -261,16 +241,36 @@
       } 
     }
     ```
-	上述方案会发生死锁。破坏以下4个条件可以破坏死锁。
+  上述方案会发生死锁。
 
-1. 互斥
++ **危害**
 
-    锁就是需要互斥，这个条件不能破坏
+  + 进程无法向前执行，得不到正确结果；
+  + 占有资源无法释放，资源利用率降低；
+  + 占有资源无法释放，产生新的死锁
 
-1. 占有且等待
++ **成因**
 
-    可以一次性申请所有的资源，这样就不存在等待了。对于这个实例，增加账本管理员，账本管理员一次性申请两个账户。
-    
+  4个必要原因一起构成死锁，只要能破坏其中一个就能避免。
+
+  
+
+  1. 互斥：锁就是需要互斥，这个条件不能破坏
+
+  2. 占有且等待：可以一次性申请所有的资源，这样就不存在等待了。
+  
+     下方第一个代码，对于这个实例，增加账本管理员，账本管理员一次性申请两个账户。
+  
+  3. 不可抢占
+  
+     占用部分资源的线程进一步申请其他资源时，如果申请不到，可以主动释放它占有的资源，这样不可抢占这个条件就破坏掉了。
+     这一点 synchronized 是做不到的。原因是 synchronized 申请资源的时候，如果申请不到，线程直接进入阻塞状态了，释放不了线程已经占有的资源。java.util.concurrent 这个包下面提供的 Lock 可以解决这个问题。
+  
+  4. 循环等待
+	
+   可以靠按序申请资源来预防。所谓按序申请，是指资源是有线性顺序的，申请的时候可以先申请资源序号小的，再申请资源序号大的，这样线性化后自然就不存在循环了。
+       
+  
     ```Java
     class Allocator {
       private List<Object> als =
@@ -291,9 +291,9 @@
         Object from, Object to){
         als.remove(from);
         als.remove(to);
-      }
     }
-    
+    }
+  
     class Account {
     // actr应该为单例
       private Allocator actr;
@@ -319,15 +319,6 @@
       } 
     }
     ```
-
-1. 不可抢占
-
-    占用部分资源的线程进一步申请其他资源时，如果申请不到，可以主动释放它占有的资源，这样不可抢占这个条件就破坏掉了。
-    这一点 synchronized 是做不到的。原因是 synchronized 申请资源的时候，如果申请不到，线程直接进入阻塞状态了，而线程进入阻塞状态，释放不了线程已经占有的资源。java.util.concurrent 这个包下面提供的 Lock 可以解决这个问题。
-    
-1. 循环等待
-
-    可以靠按序申请资源来预防。所谓按序申请，是指资源是有线性顺序的，申请的时候可以先申请资源序号小的，再申请资源序号大的，这样线性化后自然就不存在循环了。
     ```Java
     class Account {
       private int id;
@@ -450,26 +441,14 @@
     }
     ```
 
-+ **synchronized**
-  ----
-    <img src="https://kityminder-img.gz.bcebos.com/b8b934201e246e57b06570ee7fbd56ba1fd7de88" style="zoom:50%;" />
-    Java 参考了 MESA 模型，语言内置的管程（synchronized）对 MESA 模型进行了精简。MESA 模型中，条件变量可以有多个，Java 语言内置的管程里只有一个条件变量。Java SDK 并发包实现的管程支持多个条件变量，不过并发包里的锁，需要开发人员自己进行加锁和解锁操作。
-
-  + **使用**
-
-    可以用来修饰方法，也可以用来修饰代码块。Java 编译器会在 synchronized 修饰的方法或代码块前后自动加上加锁 lock() 和解锁 unlock()。
-
-    当修饰静态方法的时候，锁定的是当前类的 Class 对象，在上面的例子中就是 Class X；当修饰非静态方法的时候，锁定的是当前实例对象 this。加锁的操作不仅能保证代码块的原子性，也能保证可见性（hapen-before 中的 管程中锁的规则）
-
-  + **原理**
-
-    
++ [**synchronized**](Java_synchronized.md)
 
 ### 1.3. 线程
 
 #### 1.3.1. 生命周期
 
-##### 通用线程状态-五态模型
++ **通用线程状态-五态模型**
+
 <img src="https://kityminder-img.gz.bcebos.com/f30f1749a120a7b25cddfd8afaa9e068b5c00f5c" style="zoom:50%;" />
 
 1. 初始状态，指的是线程已经被创建，但是还不允许分配 CPU 执行。这个状态属于编程语言特有，仅在编程语言层面被创建，而在操作系统层还没有创建。
@@ -478,9 +457,11 @@
 1. 运行状态的线程如果调用一个阻塞的 API（例如以阻塞方式读文件）或者等待某个事件（例如条件变量），那么线程的状态就会转换到休眠状态，同时释放 CPU 使用权，休眠状态的线程永远没有机会获得 CPU 使用权。当等待的事件出现了，线程就会从休眠状态转换到可运行状态。
 1. 终止状态：线程执行完或者出现异常。
 
-##### Java 线程状态
-![](https://kityminder-img.gz.bcebos.com/d38e68040adc3b3eb512826daece8e6cdee9812c)
++ **Java 线程状态**
+
+<img src="https://kityminder-img.gz.bcebos.com/d38e68040adc3b3eb512826daece8e6cdee9812c" style="zoom:50%;" />
 Java 语言合并了可运行状态和运行状态；细化了休眠状态。
+
 + NEW（初始化状态）
 + RUNNABLE（可运行 / 运行状态）
 + BLOCKED（阻塞状态）
@@ -492,7 +473,7 @@ jstack 命令或者Java VisualVM这个可视化工具将 JVM 所有的线程栈�
 
 I/O阻塞在Java中是可运行状态，并发包中的lock是等待状态。
 
-###### 各状态之间的转换条件
++ **各状态之间的转换条件**
 
 见另一篇博客
 + stop() 方法会真的杀死线程，不给线程喘息的机会，如果线程持有 ReentrantLock 锁，被 stop() 的线程并不会自动调用 ReentrantLock 的 unlock() 去释放锁（线程持有 synchronized 隐式锁会释放），那其他线程就再也没机会获得 ReentrantLock 锁，这实在是太危险了。该方法就不建议使用，类似的方法还有 suspend() 和 resume() 方法，这两个方法同样也都不建议使用。
@@ -506,28 +487,28 @@ I/O阻塞在Java中是可运行状态，并发包中的lock是等待状态。
 
 #### 1.3.2. 合适的线程数量
 
-如果 CPU 和 I/O 设备的利用率都很低，那么可以尝试通过增加线程来提高吞吐量
+​	如果 CPU 和 I/O 设备的利用率都很低，那么可以尝试通过增加线程来提高吞吐量
 
-##### CPU密集型
++ **CPU密集型**
 
-对于 CPU 密集型的计算场景，理论上“线程的数量 =CPU 核数”就是最合适的。不过在工程上，线程的数量一般会设置为“CPU 核数 +1”，这样的话，当线程因为偶尔的内存页失效或其他原因导致阻塞时，这个额外的线程可以顶上，从而保证 CPU 的利用率。
+  对于 CPU 密集型的计算场景，理论上“线程的数量 =CPU 核数”就是最合适的。不过在工程上，线程的数量一般会设置为“CPU 核数 +1”，这样的话，当线程因为偶尔的内存页失效或其他原因导致阻塞时，这个额外的线程可以顶上，从而保证 CPU 的利用率。
 
-##### IO密集型
++ **IO密集型**
 
-最佳线程数 =CPU 核数 * [ 1 +（I/O 耗时 / CPU 耗时）]
-耗时不好得到，可使用经验值2 * CPU 的核数 + 1 作为初始值
+  最佳线程数 =CPU 核数 * [ 1 +（I/O 耗时 / CPU 耗时）]
+  耗时不好得到，可使用经验值2 * CPU 的核数 + 1 作为初始值
 
 ### 1.4. 结合OOP
 
-#### 封装共享变量
++ **封装共享变量**
 
-将共享变量作为对象属性封装在内部，对所有公共方法制定并发访问策略。
-对于这些不会发生变化的共享变量，建议你用 final 关键字来修饰
+  将共享变量作为对象属性封装在内部，对所有公共方法制定并发访问策略。
+  对于这些不会发生变化的共享变量，建议你用 final 关键字来修饰
 
-#### 识别共享变量间的约束条件
++ **识别共享变量间的约束条件**
 
-这些约束条件，决定了并发访问策略。
-约束条件意味着有IF，也就可能发生静态条件。
+  这些约束条件，决定了并发访问策略。
+  约束条件意味着有IF，也就可能发生静态条件。
 
 ### 1.5. 并发编程的另一个角度
 
@@ -630,28 +611,269 @@ Java SDK 并发包里之所以有那么多东西，有很大一部分原因就�
 
 抽象的队列式同步器，AQS定义了一套多线程访问共享资源的同步器框架，许多同步类实现都依赖于它，如`ReentrantLock`/`Semaphore`/`CountDownLatch`...。
 
+​	![aqs_queue](img/aqs_queue.gif)
+
+
+
+`AQS`将所有请求线程构成一个`CLH`队列，当一个线程执行完(lock.unlock())会激活自己的`next`节点，等待执行的线程全部处于阻塞状态。线程一开始加锁（`aquire`）失败后循环调用CAS加入到队列尾。
+
+**CLH(Craig, Landin And Hagersten)**:各线程轮询各自关注的变量，以避免多线程对同一变量轮询，从CPU缓存一致性角度上减少系统的消耗。CLH轮询的是当前节点的**前驱节点**的变量，以判断前一个线程是否释放了锁。
+
++ **变量**
+
+  1. `private volatile int state`
+
+     同步状态，利用`volatile`的可见性和`cas`的原子性修改保证互斥。
+
+     + `state>0`:表示有线程占用，如果占用线程为自己，`state++`表示**重入**.
+     + `state=0`:可以调用`cas`修改`state`的，修改成功即占用成功，即可设置自己为占用线程。
+
+  2. `private transient volatile Node head`
+
+     队列头
+
+  3. `private transient volatile Node tail`
+
+     队列尾，Node用于包装线程，内部包装了各种线程状态：
+
+     ```
+     SIGNAL(-1) ：线程的后继线程正/已被阻塞，当该线程release或cancel时要重新这个后继线程(unpark)
+     CANCELLED(1)：因为超时或中断，该线程已经被取消
+     CONDITION(-2)：表明该线程被处于条件队列，就是因为调用了>- Condition.await而被阻塞
+     PROPAGATE(-3)：传播共享锁
+     ```
+
+     
+
++ **加锁过程**
+
+  1. `acquire()`
+
+     ```java
+     public final void acquire(int arg) {
+         if (!tryAcquire(arg) && acquireQueued(addWaiter(Node.EXCLUSIVE), arg))
+             //中断，parkAndCheckInterrupt调用interrupted检测是否中断的同时会移除中断标志
+             selfInterrupt();
+     }
+     ```
+
+  2. `compareAndSetState()`
+
+     和原子类修改值一样，调用`unsafe.compareAndSwapInt`实现。
+
+  3. `tryAcquire()`
+
+     不提供实现，由子类具体实现，template method。
+
+  4. `addWaiter()`
+
+     ```java
+     private Node addWaiter(Node mode) { // mode 表示是独占还是共享，默认null表示独占
+         Node node = new Node(Thread.currentThread(), mode);  
+         Node pred = tail;  
+         if (pred != null) {  
+             node.prev = pred;  // tail不为null调用cas将node加入队尾
+             if (compareAndSetTail(pred, node)) {  
+                 pred.next = node;  
+                 return node;  
+             }  
+         }  
+         enq(node);  // 队尾null调用enq处理
+         return node;  
+     }  
+     ```
+
+  5. `enq()`
+
+     ```java
+     private Node enq(final Node node) {
+         for (;;) {// 通过循环最终将节点加入队尾，或队首
+             Node t = tail;
+             if (t == null) { // Must initialize
+                 if (compareAndSetHead(new Node()))
+                     tail = head;
+             } else {
+                 node.prev = t;
+                 if (compareAndSetTail(t, node)) {
+                     t.next = node;
+                     return t;
+                 }
+             }}}
+     ```
+
+  6. `acquireQueued()`
+
+     ```java
+     final boolean acquireQueued(final Node node, int arg) {
+         boolean failed = true;
+         try {boolean interrupted = false;
+             for (;;) {
+                 final Node p = node.predecessor();// node前一个节点
+                 if (p == head && tryAcquire(arg)) {// 前一个节点是head时再次尝试获取
+                     setHead(node); // 获取成功当前节点放队首
+                     p.next = null; // help GC
+                     failed = false;
+                     return interrupted;
+                 }
+                 // 满足条件，挂起
+                 if (shouldParkAfterFailedAcquire(p, node) && parkAndCheckInterrupt())
+                     interrupted = true;
+             }
+         } finally {
+             if (failed) cancelAcquire(node);
+         }
+     }
+     ```
+
+     请求锁不成功会挂起在`acquireQueued`方法的`parkAndCheckInterrupt`那一行，之后的代码要等其他线程取消占用发起唤醒才能执行，进而继续循环，`tryAcquire`竞争。
+
+     `p == head && tryAcquire(arg)`当前一个节点是即将运行的节点，允许抢占。
+
+  7. `shouldParkAfterFailedAcquire` CLH思路的提现，每个线程关注前一个线程的变量。
+
+     ```java
+     private static boolean shouldParkAfterFailedAcquire(Node pred, Node node) {
+         int ws = pred.waitStatus;
+         if (ws == Node.SIGNAL)//规则1：前节点为SIGNAL，当前节点可以挂起
+             return true;
+         if (ws > 0) {//规则2：前节点为CANCELLED，前节点被放弃，往回找一个没被放弃的节点
+             do {
+                 node.prev = pred = pred.prev;
+             } while (pred.waitStatus > 0);
+             pred.next = node;//设置为该节点的后节点
+         } else {//规则3：否则设置前节点为SIGNAL
+             compareAndSetWaitStatus(pred, ws, Node.SIGNAL);
+         }
+         return false;
+     }
+     ```
+
++ **解锁过程**
+
+  1. `release()`
+  
+     ```java
+     public final boolean release(int arg) {
+         if (tryRelease(arg)) {// AQS 不实现tryRelease，模板模式
+             Node h = head;
+             if (h != null && h.waitStatus != 0)
+                 unparkSuccessor(h);//唤醒第一个线程
+             return true;
+         }
+         return false;
+     }
+     ```
+  
+  2. `unparkSuccessor()`
+  
+     ```java
+     private void unparkSuccessor(Node node) {  
+         // 如果状态是否定则清除状态以预期发出信号
+         int ws = node.waitStatus;  
+         if (ws < 0) compareAndSetWaitStatus(node, ws, 0);   
+      
+         // 通常唤醒next
+         Node s = node.next;  
+         if (s == null || s.waitStatus > 0) {// next 为null或被CANCLED时
+             s = null; // 从后往前找，用第一个可用的线程
+             for (Node t = tail; t != null && t != node; t = t.prev)  
+                 if (t.waitStatus <= 0)  s = t;  
+         }  
+         if (s != null)  
+             LockSupport.unpark(s.thread);  
+     }  
+     ```
+  
+     
+
 ### 2.1. Lock&Condition
 
 Java SDK 并发包通过 Lock 和 Condition 两个接口来实现管程，其中 Lock 用于解决互斥问题，Condition 用于解决同步问题。
-#### 2.1.1. Lock
+#### 2.1.1. ReentrantLock
+
+`ReentrantLock`把所有`Lock`接口的操作都委派到`Sync`类上，该类继承`AbstractQueuedSynchronizer`，为了支持公平锁和非公平锁，该类有两个子类`NofairSync`和`FairSync`。
+
++ **加锁过程**
+
+```flow
+st=>start: ReentrantLock.lock()
+nfs_lock=>operation: NofairSync.lock()
+aqs_casS=>condition: AQS.casState(0,1)
+aqs_seot=>operation: AOS.setEOT(currThread)
+aqs_aquire=>operation: AQS.aquire(1)
+aqs_acqQ=>operation: AQS.acquireQueued()
+aqs_addWaiter=>operation: AQS.addWaiter()
+nfs_tryAqu=>operation: NofairSync.tryAcquire()
+sync_nfTAqu=>operation: Sync.nonfairTryAcquire()
+is_acq=>condition: NofairSync.tryAcquire()
+
+st->nfs_lock->aqs_casS
+aqs_casS(yes)->aqs_seot
+aqs_casS(no)->aqs_aquire->nfs_tryAqu->sync_nfTAqu
+sync_nfTAqu->is_acq
+is_acq(no)->aqs_addWaiter->aqs_acqQ
+```
+
+​	从上图可以看出，加锁操作以非自旋方式的`cas`尝试修改`state`变量实现占用，成功则设置当前线程为占用线程，否则就`AQS.acquire`。`AQS.tryAcquire()`不做具体实现，最终调用到`Sync.nonfairTryAcquire()`
+
+ 1. nofairTryAcquire()`
+
+    ```java
+    final boolean nonfairTryAcquire(int acquires) {
+        final Thread current = Thread.currentThread();
+        int c = getState(); // 获取状态
+        if (c == 0) { // 状态为0表示还未被占用，cas占用
+            if (compareAndSetState(0, acquires)) {
+                setExclusiveOwnerThread(current); // 设置占用线程为自己
+                return true;
+            }
+        }
+        // 状态不为0，如果占用线程是自己，表示再次进入
+        else if (current == getExclusiveOwnerThread()) {
+            int nextc = c + acquires;
+            if (nextc < 0) throw new Error("Maximum lock count exceeded");
+            setState(nextc); // 再次进入是增加state，没有并发，不用cas
+            return true;
+        }
+        return false;
+    }
+    ```
+
+    `AQS.tryAcquire()`没成功时，调用`AQS.addWaiter()`和`AQS.acquireQueued()`。
+
++ **解锁过程**
+
+  `unlock`调用`sync.release`，`sync`没有自己实现，直接使用`AQS.release()`，`AQS.release()`调用`AQS.tryRelease()`，`AQS.tryRelease()`不做实现(模板模式)，交由`sync.tryRelease()`实现。
+
+  1. `sync.tryRelease()`
+
+     ```java
+     protected final boolean tryRelease(int releases) {
+         int c = getState() - releases;
+         if (Thread.currentThread() != getExclusiveOwnerThread())
+             throw new IllegalMonitorStateException();
+         boolean free = false;
+         if (c == 0) {// 每次调用释放只释放1，直到state为0才解除占用
+             free = true;
+             setExclusiveOwnerThread(null);
+         }
+         setState(c);
+         return free;
+     }
+     ```
+
+     
 
 + **与Syschronized的区别**
 ----
 
-  synchronized申请资源的时候，如果申请不到，线程直接进入阻塞状态了，而线程进入阻塞状态，啥都干不了，也释放不了线程已经占有的资源。
+AbstractQueuedSynchronizer通过构造一个基于阻塞的CLH队列容纳所有的阻塞线程，而对该队列的操作均通过Lock-Free（CAS）操作，但对已经获得锁的线程而言，ReentrantLock实现了偏向锁的功能。
 
-  Lock则解决了这个问题：
+synchronized的底层也是一个基于CAS操作的等待队列，但JVM实现的更精细，把等待队列分为ContentionList和EntryList，目的是为了降低线程的出列速度；当然也实现了偏向锁，从数据结构来说二者设计没有本质区别。但synchronized还实现了自旋锁，并针对不同的系统和硬件体系进行了优化，而Lock则完全依靠系统阻塞挂起等待线程。
 
-    ```Java
-    // 支持中断的API
-    void lockInterruptibly() 
-      throws InterruptedException;
-    // 支持超时的API
-    boolean tryLock(long time, TimeUnit unit) 
-      throws InterruptedException;
-    // 支持非阻塞获取锁的API
-    boolean tryLock();
-    ```
+当然Lock比synchronized更适合在应用层扩展，可以继承AbstractQueuedSynchronizer定义各种实现，比如实现读写锁（ReadWriteLock），公平或不公平锁；同时，Lock对应的Condition也比wait/notify要方便的多、灵活的多。
+
+
 
 + **保证可见性**
 
@@ -687,16 +909,18 @@ class SampleLock {
 Condition 实现了管程模型里面的条件变量。
 Lock 和 Condition 实现的管程，线程等待和通知需要调用 await()、signal()、signalAll()，它们的语义和 wait()、notify()、notifyAll() 是相同的。但是不一样的是，Lock&Condition 实现的管程里只能使用前面的 await()、signal()、signalAll()，而后面的 wait()、notify()、notifyAll() 只有在 synchronized 实现的管程里才能使用。
 
-##### 同步异步
++ **同步异步**
 
-调用方是否需要等待结果，如果需要等待结果，就是同步；如果不需要等待结果，就是异步。
-Java语言默认是同步的，要实现异步可以有两种思路。
-+ 异步调用：调用方创建一个子线程，在子线程中执行方法调用；
-+ 异步方法：方法实现的时候，创建一个新的线程执行主要逻辑，主线程直接 return。
+  调用方是否需要等待结果，如果需要等待结果，就是同步；如果不需要等待结果，就是异步。
+  Java语言默认是同步的，要实现异步可以有两种思路。
 
-##### 异步转同步（Dubbo RPC）
+  + 异步调用：调用方创建一个子线程，在子线程中执行方法调用；
+  + 异步方法：方法实现的时候，创建一个新的线程执行主要逻辑，主线程直接 return。
 
-TCP 协议本身是异步的，RPC 调用时，在 TCP 协议层面，发送完 RPC 请求后，线程是不会等待 RPC 的响应结果的。Dubbo框架做了异步转同步的事情。
++ **异步转同步（Dubbo RPC）**
+
+  TCP 协议本身是异步的，RPC 调用时，在 TCP 协议层面，发送完 RPC 请求后，线程是不会等待 RPC 的响应结果的。Dubbo框架做了异步转同步的事情。
+
 ```Java
 DemoService service = 初始化部分省略
 String message = 
@@ -769,7 +993,7 @@ private void doReceived(Response res) {
 
 ### 2.2. Semaphore
 
-#### 信号量模型
+	+ 信号量模型
 
 一个计数器，一个等待队列，三个方法。
 只能通过三个方法操作计数器和等待对列。
@@ -807,7 +1031,7 @@ class Semaphore{
 }
 ```
 
-#### Java 信号量
+	+ Java 信号量
 
 在 Java SDK 里面，信号量模型是由 java.util.concurrent.Semaphore 实现的，Semaphore 这个类能够保证这三个方法都是原子操作。
 
@@ -828,7 +1052,7 @@ static void addOne() {
 ```
 在第二个线程执行acquire时，由于计数器已经被第一个线程改为0，只能阻塞的等待。
 
-#### 实现限流器
+	+ 实现限流器
 
 信号量的计数器初始化为1时，就是一个互斥锁。除此之外，Semaphore 可以允许多个线程访问一个临界区（资源池化对的访问限制，比如连接池，线程池）。
 
@@ -873,19 +1097,19 @@ pool.exec(t -> {
 + 适用场景：读多写少；
 + 实例：缓存
 
-#### 原则
+	+ 原则
 
 1. 允许多个线程同时读共享变量；
 1. 只允许一个线程写共享变量；
 1. 如果正在执行写操作，此时禁止读线程读共享变量。
 
-#### 注意事项
+	+ 注意事项
 
 1. 读写锁不支持锁的升级，但支持锁的降级；
 1. 读写锁类似于 ReentrantLock，也支持公平模式和非公平模式。读锁和写锁都实现了 java.util.concurrent.locks.Lock 接口
 1. 只有写锁支持条件变量，读锁是不支持条件变量的，读锁调用 newCondition() 会抛出 UnsupportedOperationException 异常。
 
-#### 实例：缓存
+	+ 实例：缓存
 
 + 一次性加载:适用于数据量不大的场景
     ```Java
@@ -1401,7 +1625,9 @@ public final native boolean compareAndSwapInt(Object o, long offset,int expected
 ### 2.7. 线程池
 
 创建对象，仅仅是在 JVM 的堆里分配一块内存而已；而创建一个线程，却需要调用操作系统内核的 API，然后操作系统要为线程分配一系列的资源，这个成本就很高了，所以线程是一个重量级的对象，应该避免频繁创建和销毁。
-业界线程池的设计：生产者-消费者模式。线程池的使用方是生产者，线程池本身是消费者。
+**原理**：以阻塞队列连接的生产者-消费者模式。线程池的使用方是生产者，线程池本身是消费者。
+
+以下代码实现了一个简单的线程池，可以用来了解线程池的原理，当然java的线程池功能比这个丰富。
 
 ```Java
 //简化的线程池，仅用来说明工作原理
@@ -1409,11 +1635,9 @@ class MyThreadPool{
   //利用阻塞队列实现生产者-消费者模式
   BlockingQueue<Runnable> workQueue;
   //保存内部工作线程
-  List<WorkerThread> threads 
-    = new ArrayList<>();
+  List<WorkerThread> threads = new ArrayList<>();
   // 构造方法
-  MyThreadPool(int poolSize, 
-    BlockingQueue<Runnable> workQueue){
+  MyThreadPool(int poolSize, BlockingQueue<Runnable> workQueue){
     this.workQueue = workQueue;
     // 创建工作线程
     for(int idx=0; idx<poolSize; idx++){
@@ -1448,7 +1672,7 @@ pool.execute(()->{
     System.out.println("hello");
 });
 ```
-以上代码实现了一个简单的线程池，可以用来了解线程池的原理，当然java的线程池功能比这个丰富。
+
 
 
 #### 2.7.1 ThreadPoolExecutor
@@ -1459,27 +1683,24 @@ pool.execute(()->{
     1. keepAliveTime & unit：如果一个线程空闲了keepAliveTime & unit这么久，而且线程池的线程数大于 corePoolSize ，那么这个空闲的线程就要被回收了；
     1. workQueue：工作队列；
     1. threadFactory：自定义工厂，可以实现给线程指定一个有意义的名字等操作。
-    1. handler：自定义任务拒绝策略。如果线程池中所有的线程都在忙碌，并且工作队列也满了（前提是工作队列是有界队列），此时提交任务，线程池就会拒绝接收。ThreadPoolExecutor定义了：
+    1. handler：自定义**任务拒绝策略**。如果线程池中所有的线程都在忙碌，并且工作队列也满了（前提是工作队列是有界队列），此时提交任务，线程池就会拒绝接收。ThreadPoolExecutor定义了：
         + CallerRunsPolicy：提交任务的线程自己去执行该任务。
         + AbortPolicy：默认的拒绝策略，会 throws RejectedExecutionException。
         + DiscardPolicy：直接丢弃任务，没有任何异常抛出。
         + DiscardOldestPolicy：把最早进入工作队列的任务丢弃，然后把新任务加入到工作队列。
+  
 + 静态工厂类Executors
 	利用 Executors 可以快速创建线程池。不建议使用 Executors：Executors 提供的很多方法默认使用的都是无界的 LinkedBlockingQueue，高负载情境下，无界队列很容易导致 OOM，而 OOM 会导致所有请求都无法处理，强烈建议使用有界队列。
   
-+ 拒绝策略
-	使用有界队列，当任务过多时，线程池会触发执行拒绝策略，线程池默认的拒绝策略会 throw RejectedExecutionException 这是个运行时异常，对于运行时异常编译器并不强制 catch 它，所以开发人员很容易忽略。因此默认拒绝策略要慎重使用。如果线程池处理的任务非常重要，建议自定义自己的拒绝策略；并且在实际工作中，自定义的拒绝策略往往和降级策略(例如将任务信息插入数据库或者消息队列，启用一个专门用作补偿的线程池去进行补偿)配合使用。
-+ 异常处理
-	最稳妥的方法是捕捉所有异常并按需处理，否则执行任务发生异常，却不知道。
-    ```Java
-    try {
-      //业务逻辑
-    } catch (RuntimeException x) {
-      //按需处理
-    } catch (Throwable x) {
-      //按需处理
-    } 
-    ```
+  
+  
++ **拒绝策略**
+	使用有界队列，当任务过多时，线程池会触发执行拒绝策略，线程池默认的拒绝策略会 throw RejectedExecutionException 这是个运行时异常，对于运行时异常编译器并不强制 catch 它，所以开发人员很容易忽略。因此默认拒绝策略要慎重使用。如果线程池处理的任务非常重要，建议自定义自己的拒绝策略；
+	
+	在实际工作中，自定义的拒绝策略往往和降级策略(例如将任务信息插入数据库或者消息队列，启用一个专门用作补偿的线程池去进行补偿)配合使用。
+	
+	
+	
 + 线程设置前缀名称
 	
     Spring中给线程池设置名称前缀
@@ -1513,8 +1734,7 @@ pool.execute(()->{
   
     ```Java
     // 取消任务
-    boolean cancel(
-      boolean mayInterruptIfRunning);
+    boolean cancel(boolean mayInterruptIfRunning);
     // 判断任务是否已取消  
     boolean isCancelled();
     // 判断任务是否已结束

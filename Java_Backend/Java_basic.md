@@ -208,7 +208,7 @@
 
   + Java1.7基于segment实现，只对segment加锁，而不是整个对象
 
-  + java1.8基于CAS实现，f = tabAt(tab, i = (n - 1) & hash，put操作时锁定f
+  + java1.8基于CAS实现，f = tabAt(tab, i = (n - 1) & hash
 
     + put：key对应数组元素null则通过CAS设置为当前值，如果对应元素不为null，则对该元素使用synchronized锁定，然后进行操作；
 

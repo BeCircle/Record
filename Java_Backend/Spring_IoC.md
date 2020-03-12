@@ -59,13 +59,16 @@
 
 #### 3.2. 容器的依赖注入
 依赖注入的过程是用户第一次向`IoC`容器索要`Bean`时触发的，或者是在`BeanDefinition`信息中通过控制`lazy-init`属性来让容器完成对`Bean`的预实例化。过程的触发入口在 `DefalutListableBeanFactory` 中 `getBean` ，具体实现在 `AbstractBeanFactory` 的 `doGetBean`。
+
 ![ioc_getBean.png](img/ioc_getBean.png)
+
+
 
 `doGetBean` 调用实现在 `AbstractAutowireCapableBeanFactory` 中的 `createBean` ，`createBean` 不仅依据 `BeanDefinition` 定义的要求生成了需要的 `Bean`， 还对 `Bean` 的初始化进行了处理，比如实现了在 `BeanDefinition` 中的 `init-method`属性定义，`Bean` 后置处理器等。与依赖注入关系密切的方法有 `createBeanInstance` 和 `populateBean`， 在 `createBeanInstance` 中生成了 `Bean` 所包含的 `Java` 对象（可以通过工厂方法生成，也可以通过 `autowire` 特性来生成，由相关的 `BeanDefinition` 来指定）。 这里使用 `CGLIB` 对 `Bean` 进行实例化，`SimpleInstantiationStrategy` 这个 `Strategy` 是 `Spring` 用来生成 `Bean` 对象的默认类，它提供了两种实例化Java对象的方法，一种是通过 `BeanUtils`，它使用了`JVM`的反射功能，一种是通过 `CGLIB` 来生成。
 ![ioc_create_bean.png](img/ioc_create_bean.png)
 
 在实例化 `Bean` 对象生成的基础上，通过`populateBean` 将这些`Bean`对象的依赖关系处理好，这些依赖关系处理的依据就是已经解析得到的 `BeanDefinition`。`populateBean` 首先处理`autowire`的注入（可以根据`Bean`的名字或者类型）；然后通过 `applyPropertyValues` 对属性进行解析和注入：这里通过 `BeanDefinitionValueResolver` 中的 `resolveValueIfNecessary`对` BeanDefinition` 进行解析，然后注入到 `property` 中。在完成这个解析过程后，已经为依赖注入准备好了条件，真正把`Bean`对象设置到它所依赖的另一个`Bean`的属性中去的是 `AbstractNestablePropertyAccessor` 中的 `setPropertyValue`。
-![populateBean 的详细流程](E:\Document\Record\Note\img\ioc_populateBean.png)
+![populateBean 的详细流程](img\ioc_populateBean.png)
 
 ## 4. 综合
 
@@ -97,6 +100,7 @@
 `IoC`容器负责管理容器中所有`bean`的生命周期，而在`bean`生命周期的不同阶段，`Spring`提供了不同的扩展点来改变`bean`的命运。
 
 + **BeanFactoryPostProcessor**
+  ----
 
   容器的启动阶段，`BeanFactoryPostProcessor`允许在容器实例化相应对象之前，对注册到容器的`BeanDefinition`所保存的信息做一些额外的操作，比如修改`bean`定义的某些属性或者增加其他信息等。
 
@@ -128,10 +132,12 @@
   // 其postProcessBeforeInitialization方法调用了invokeAwareInterfaces方法
   private void invokeAwareInterfaces(Object bean) {
       if (bean instanceof EnvironmentAware) {
-          ((EnvironmentAware) bean).setEnvironment(this.applicationContext.getEnvironment());
+          ((EnvironmentAware)bean)
+          .setEnvironment(this.applicationContext.getEnvironment());
       }
       if (bean instanceof ApplicationContextAware) {
-          ((ApplicationContextAware) bean).setApplicationContext(this.applicationContext);
+          ((ApplicationContextAware)bean)
+          .setApplicationContext(this.applicationContext);
       }
       // ......
   }

@@ -19,7 +19,7 @@
 
      图片压缩、定义存储的抽象接口，根据配置修改CDN；
 
-  2. 上传图片偶尔会遇到问题，重启没有问题，后面日志(tempory location not valid) google得知POST 方法需要使用临时目录存储，CentOS会经常删除临时目录。
+  2. 上传图片偶尔会遇到问题，重启没有问题，后面看日志(tempory location not valid) google得知POST 方法需要使用临时目录存储，CentOS会经常删除临时目录。
 
      增加了配置：servlet.multipart.location: ${user.dir}
 
@@ -58,10 +58,7 @@
 
 ### 7.1. [MySQL](MySQL.md)
 
-### 7.2. Redis
-
-1. list底层
-2. 
+### 7.2. [Redis](Redis.md)
 
 ## 8. [Java基础](Java_basic.md)
 
@@ -72,8 +69,8 @@
 ### 9.2. JVM
 
 1. [运行时内存区域&GC](JVM_memory&GC.md)
-
 3. [JVM类加载机制与双亲委派模型](JVM_classLoader.md)
+3. [Java Native Interface](JVM_JNI.md)
 
 ## 10. Java Web 基础
 
@@ -155,8 +152,6 @@ hash的分区方式分为：节点取余、虚拟槽分区、一致性hash分区
 
 ### 12.2. 消息队列
 
-### 12.4 Redis 
-
-Redis集群使用分片（sharding）而非一致性hash实现。
+### 12.4 [Redis ](Redis.md)
 
 ### 12.5 [zookeeper](zookeeper.md)

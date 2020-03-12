@@ -2,6 +2,10 @@
 
 SpringBoot本质上是一个基于Spring框架的应用，是Spring对“约定优于配置”理念的产物。包括4大核心特性：自动配置、起步依赖、Actuator、命令行界面（可选），主要关注前三点。
 
+大致过程：利用springFactoriesLoader获取配置的监听器，启动监听器。准备environment，启动容器，创建applicationContext（将所有bean加入容器）、refresh（处理beandefinition，处理注解），以上过程中利用事件监听机制发布各阶段时间，注册监听器如果感兴趣就处理对应事件。
+
+处理到@import注解时调用importselector（利用springbootFactoriesLoader加载配置了自动配置的类，根据条件注解进行自动配置。）
+
 + [IOC](Spring_IoC.md)容器是Spring框架的基础，其他特性都是基于IOC进行实现，如：
 + [AOP](Spring_AOP.md)，
 + [MVC](Spring_MVC.md)。
@@ -258,7 +262,7 @@ public ConfigurableApplicationContext run(String... args) {
    }
    ```
 
-   获取到所有的`BeanFactoryPostProcessor`来对容器做一些额外的操作，`BeanFactoryPostProcessor`允许我们在容器实例化相应对象之前，对注册到容器的`BeanDefinition`所保存的信息做一些额外的操作。
+   获取到所有的[`BeanFactoryPostProcessor`](./Spring_IoC.md#BeanFactoryPostProcessor)来对容器做一些额外的操作，`BeanFactoryPostProcessor`允许我们在容器实例化相应对象之前，对注册到容器的`BeanDefinition`所保存的信息做一些额外的操作。
 
    这里`getBeanFactoryPostProcessors()`方法可以获取到少量的Processor：
 
